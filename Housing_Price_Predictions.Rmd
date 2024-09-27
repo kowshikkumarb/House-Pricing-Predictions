@@ -1,0 +1,355 @@
+---
+title: "Price Prediction of Houses"
+author: "Kowshik Kumar B"
+date: "11/5/2019"
+output: 
+  html_document:
+      code_folding: show
+---
+
+# Calling the Libraries
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+#library(devtools)
+#install_github("vqv/ggbiplot")
+library(leaps)
+library(MASS)
+library(e1071) 
+library(readr)
+library(e1071)
+library(Metrics)
+library(vioplot)
+library(randomForest)
+library(ROCR)
+```
+
+# Importing and understanding the "houses" data
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+df <- read_csv("houses.csv")
+head(df)                        #Accessing few first rows of the "Houses" dataset.
+tail(df)                        #Accessing few last rows of the "Houeses" dataset.              
+dim(df)                         #Checking the Dimensions of the dataset.
+str(df)                        #Checking the structure of the variables of the "Houses" dataset.
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+summary(df)                   #Accessing the Summary of the "Houses" dataset. 
+```
+
+
+# Checking the frequency of the variables of the "Houses" dataset.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+table(df$bedrooms)
+table(df$bathrooms)
+table(df$waterfront)
+table(df$view)
+table(df$condition)
+table(df$grade)
+```
+
+we can see there are majority of 2,3,4,5,6 Bedrooms; 1-5 Bathrooms;No waterfronts; 3-5 condition and 5-10 Grade in the "Houses" dataset.
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+df$id=NULL
+```
+
+# Correlation of the variables
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+library(corrplot)
+corrplot(cor(df),method = 'circle',order="hclust")
+cor(df)
+```
+
+# Splitting the Dataset into Train and Test (60:40) datasets 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+set.seed(12345)
+train.rows = sample(rownames(df), dim(df)[1]*0.6)
+train.df = df[train.rows, ]
+
+valid.rows = setdiff(rownames(df), train.rows) 
+valid.df = df[valid.rows, ]
+```
+
+
+# Data Visualization of the "Houses" dataset
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+###Code for Additional Clean Graphing of visualization plots###
+library("ggplot2")
+cleanup = theme(panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_blank(),
+                axis.line.x = element_line(color = 'black'),
+                axis.line.y = element_line(color = 'black'),
+                legend.key = element_rect(fill = 'white'),
+                text = element_text(size = 15))
+
+```
+
+# Scatterplots
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+library(grid)
+library(gridExtra)
+library("ggplot2")
+
+s1=ggplot(data = train.df, mapping = aes(x =train.df$bedrooms,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Bedrooms ") +
+    xlab("Number of Bedrooms")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s2=ggplot(data = train.df, mapping = aes(x =train.df$bathrooms,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Bathrooms ") +
+    xlab("Number of Bathrooms")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s3=ggplot(data = train.df, mapping = aes(x =train.df$sqft_living,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Sqft_living ") +
+    xlab("Sqft_living")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s4=ggplot(data = train.df, mapping = aes(x =train.df$waterfront,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and waterfront ") +
+    xlab("Waterfront")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s5=ggplot(data = train.df, mapping = aes(x =train.df$floors,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Floors ") +
+    xlab("Floors")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'grey')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s6=ggplot(data = train.df, mapping = aes(x =train.df$view,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and view ") +
+    xlab("view")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s7=ggplot(data = train.df, mapping = aes(x =train.df$view,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and  ") +
+    xlab("Number of Bedrooms")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s8=ggplot(data = train.df, mapping = aes(x =train.df$grade,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Grade ") +
+    xlab("Grade")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s9=ggplot(data = train.df, mapping = aes(x =train.df$sqft_above,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Sqft_above ") +
+    xlab("Sqft_above")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'grey')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s10=ggplot(data = train.df, mapping = aes(x =train.df$sqft_basement,y=train.df$price)) +
+    geom_point()+
+  ggtitle("Scatterplot of Price and Sqft_basement ") +
+    xlab("Sqft_basement")+
+    ylab("Price")+
+    geom_smooth(method = 'lm', color = 'green1')+
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+s1
+s2
+s3
+s4
+s5
+s6
+s7
+s8
+s9
+s10
+```
+
+# Histograms
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+library("ggplot2")
+h1=ggplot(data = df, mapping = aes(x = df$price)) +
+  geom_histogram( bins=30, fill = "steelblue") +
+  labs(x = "Price of the Houses") +
+  ggtitle("Histogram of Price of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+h2=ggplot(data = df, mapping = aes(x = df$bedrooms)) +
+  geom_histogram( bins=30, fill = "darkolivegreen") +
+  labs(x = "Number of Bedrooms") +
+  ggtitle("Histogram of number of Bedrooms of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+h3=ggplot(data = df, mapping = aes(x = df$bathrooms)) +
+  geom_histogram( bins=30, fill = "green1") +
+  labs(x = "Number of Bathrooms") +
+  ggtitle("Histogram of number of Bathrooms of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+h4=ggplot(data = df, mapping = aes(x = df$sqft_lot)) +
+  geom_histogram( bins=30, fill = "tomato1") +
+  labs(x = "Lot Size(Sqft") +
+  ggtitle("Histogram of Lot size of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  cleanup
+h5=ggplot(data = df, mapping = aes(x = df$waterfront)) +
+  geom_histogram( bins=30, fill = "red1") +
+  labs(x = "Waterfront") +
+  ggtitle("Histogram of waterfront for Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+h6=ggplot(data = df, mapping = aes(x = df$yr_built)) +
+  geom_histogram( bins=30, fill = "brown1") +
+  labs(x = "Built Year") +
+  ggtitle("Histogram of Year Built of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+h7=ggplot(data = df, mapping = aes(x = df$yr_renovated)) +
+  geom_histogram( bins=30, fill = "grey1") +
+  labs(x = "Renovated Year") +
+  ggtitle("Histogram of Year Renovated of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+h8=ggplot(data = df, mapping = aes(x = df$age)) +
+  geom_histogram( bins=30, fill = "orange1") +
+  labs(x = "Age of the house") +
+  ggtitle("Histogram of age of Houses in King County ") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    cleanup
+
+h1
+h2
+h3
+h4
+h5
+h6
+h7
+h8
+```
+
+Boxplot and kernel density plots of discrete variables of the "Houses" dataset.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+vioplot(df$bedrooms,col="gold")
+vioplot(df$bathrooms,col="brown1")
+vioplot(df$view,col="yellow1")
+vioplot(df$waterfront,col="green1")
+vioplot(df$grade,col="tomato1")
+vioplot(df$condition,col="steelblue")
+```
+
+
+
+## Data Modelling
+
+# Linear Model
+
+Using Backward Elimination Wrapper method for the Multi-Linear Regression model
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+full.model=glm(price~.,data=train.df)
+summary(full.model)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+step.model <- stepAIC(full.model, direction = "both", trace = TRUE)
+summary(step.model)
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+plot(full.model)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+final.model=glm(price ~ bedrooms + bathrooms + sqft_living + sqft_lot + 
+    floors + waterfront + view + condition + grade + yr_built + 
+    age,data=train.df)
+summary(final.model)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+anova(final.model)      #Analysis of variance of the final model
+```
+
+
+# Assumption checking
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+plot(final.model)
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+prediction_glm=predict(final.model,valid.df,type="response")
+rmse(valid.df$price,prediction_glm)
+```
+
+
+
+# Support Vector Machine 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+model.svm <- svm(price ~ bedrooms + bathrooms + sqft_living + sqft_lot +floors + waterfront + view + condition + grade +yr_built +  age,data = df,kernel="linear")
+summary(model.svm)
+plot(model.svm)
+ prediction_svm = predict(model.svm, valid.df, type="response")
+ rmse(valid.df$price,prediction_svm)
+```
+
+
+# Random Forest
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+set.seed(12345)
+reg.randomForest=price ~ bedrooms + bathrooms + sqft_living + sqft_lot +floors + waterfront + view + condition + grade +yr_built +  age
+ model.randomForest= randomForest(reg.randomForest,df,ntree = 100, nodesize = 10, proximity = T)
+ model.randomForest
+ plot(model.randomForest)
+ varImpPlot(model.randomForest)
+ prediction_randomForest = predict(model.randomForest, valid.df, type="response")
+ rmse(valid.df$price,prediction_randomForest)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, error=FALSE}
+library(car)
+vif(final.model)
+```
+
